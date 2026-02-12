@@ -225,12 +225,86 @@ async def send_log_file(client: Client, chat_id: int, user_ids: List[int], prefi
     os.unlink(tmp_path)
 
 # --------------------------------------------------------------
-# Command Handlers
+# Help & Start Handlers
 # --------------------------------------------------------------
+
+async def get_help_text(user_id: int) -> str:
+    """Generate help message with all commands and descriptions."""
+    is_owner = user_id == OWNER_ID
+    is_administrator = await is_admin(user_id)
+
+    text = "**🤖 Member Adder Bot Help**\n\n"
+    text += "**Public Commands:**\n"
+    text += "• /start - Start the bot\n"
+    text += "• /help - Show this help message\n\n"
+
+    text += "**👑 Owner Commands:**\n"
+    text += "• /addadmin <user_id> - Add a user as admin\n"
+    text += "• /rmadmin <user_id> - Remove an admin\n"
+    if is_owner:
+        text += "  _(You have owner access)_\n"
+    text += "\n"
+
+    text += "**🛠️ Admin Commands:**\n"
+    text += "• /addstring <Name> <SessionString> - Add a user session\n"
+    text += "• /rmstring <Name> - Remove a session by name\n"
+    text += "• /liststring - List all session names\n"
+    text += "• /getstring - Get all session strings (first 50 chars)\n"
+    text += "• /rmallstrings - Remove all sessions\n"
+    text += "• /listadmins - List all admins\n"
+    text += "• /scrab - Scrape members from groups and add to target\n"
+    text += "• /import - Import user IDs from .txt and add to target\n"
+    if is_administrator:
+        text += "  _(You have admin access)_\n"
+    else:
+        text += "  _(Admin only - you don't have access)_\n"
+
+    text += "\n**📌 Note:**\n"
+    text += "• All admin commands require you to be added as an admin by the owner.\n"
+    text += "• The owner is always an admin and can manage other admins.\n"
+    return text
 
 @bot.on_message(filters.command("start") & filters.private)
 async def start_command(client: Client, message: Message):
-    await message.reply("✅ Member Adder Bot is running.\nUse /scrab or /import (admin only).")
+    keyboard = InlineKeyboardMarkup([
+        [InlineKeyboardButton("📘 Help", callback_data="help")],
+        [InlineKeyboardButton("👤 Owner", url=f"tg://user?id={OWNER_ID}")]
+    ])
+    await message.reply(
+        "✅ **Member Adder Bot is running.**\n"
+        "Use /scrab or /import to add members (admin only).\n"
+        "Click the button below for help.",
+        reply_markup=keyboard
+    )
+
+@bot.on_message(filters.command("help") & filters.private)
+async def help_command(client: Client, message: Message):
+    text = await get_help_text(message.from_user.id)
+    keyboard = InlineKeyboardMarkup([
+        [InlineKeyboardButton("🏠 Start", callback_data="start")]
+    ])
+    await message.reply(text, reply_markup=keyboard, parse_mode=ParseMode.MARKDOWN)
+
+@bot.on_callback_query()
+async def callback_query_handler(client: Client, query: CallbackQuery):
+    if query.data == "help":
+        text = await get_help_text(query.from_user.id)
+        keyboard = InlineKeyboardMarkup([
+            [InlineKeyboardButton("🏠 Start", callback_data="start")]
+        ])
+        await query.message.edit_text(text, reply_markup=keyboard, parse_mode=ParseMode.MARKDOWN)
+    elif query.data == "start":
+        keyboard = InlineKeyboardMarkup([
+            [InlineKeyboardButton("📘 Help", callback_data="help")],
+            [InlineKeyboardButton("👤 Owner", url=f"tg://user?id={OWNER_ID}")]
+        ])
+        await query.message.edit_text(
+            "✅ **Member Adder Bot is running.**\n"
+            "Use /scrab or /import to add members (admin only).\n"
+            "Click the button below for help.",
+            reply_markup=keyboard
+        )
+    await query.answer()
 
 # ---------- Session Management ----------
 @bot.on_message(filters.command("addstring") & filters.private)
@@ -287,20 +361,36 @@ async def rmallstrings_command(client: Client, message: Message):
     await remove_all_sessions()
     await message.reply("✅ All sessions removed.")
 
-# ---------- Admin Management ----------
-@bot.on_message(filters.command("adminid") & filters.private)
-async def adminid_command(client: Client, message: Message):
+# ---------- Admin Management (Owner Only) ----------
+@bot.on_message(filters.command("addadmin") & filters.private)
+async def addadmin_command(client: Client, message: Message):
     if message.from_user.id != OWNER_ID:
         return await message.reply("⛔ Owner only.")
     parts = message.text.split()
     if len(parts) != 2:
-        return await message.reply("Usage: `/adminid user_id`")
+        return await message.reply("Usage: `/addadmin user_id`")
     try:
         uid = int(parts[1])
     except ValueError:
         return await message.reply("Invalid user ID.")
     await add_admin(uid)
     await message.reply(f"✅ User {uid} added as admin.")
+
+@bot.on_message(filters.command("rmadmin") & filters.private)
+async def rmadmin_command(client: Client, message: Message):
+    if message.from_user.id != OWNER_ID:
+        return await message.reply("⛔ Owner only.")
+    parts = message.text.split()
+    if len(parts) != 2:
+        return await message.reply("Usage: `/rmadmin user_id`")
+    try:
+        uid = int(parts[1])
+    except ValueError:
+        return await message.reply("Invalid user ID.")
+    if uid == OWNER_ID:
+        return await message.reply("❌ Cannot remove owner.")
+    await remove_admin(uid)
+    await message.reply(f"✅ User {uid} removed from admins.")
 
 @bot.on_message(filters.command("listadmins") & filters.private)
 async def listadmins_command(client: Client, message: Message):
@@ -317,23 +407,6 @@ async def listadmins_command(client: Client, message: Message):
             mention = f"`{uid}`"
         text += f"• {mention}\n"
     await message.reply(text)
-
-@bot.on_message(filters.command("rmadmin") & filters.private)
-async def rmadmin_command(client: Client, message: Message):
-    if not await is_admin(message.from_user.id):
-        return await message.reply("⛔ Admin only.")
-    parts = message.text.split()
-    if len(parts) != 2:
-        return await message.reply("Usage: `/rmadmin user_id`")
-    try:
-        uid = int(parts[1])
-    except ValueError:
-        return await message.reply("Invalid user ID.")
-    # owner cannot remove himself via this command
-    if uid == OWNER_ID:
-        return await message.reply("❌ Cannot remove owner.")
-    await remove_admin(uid)
-    await message.reply(f"✅ User {uid} removed from admins.")
 
 # ---------- Scraping & Adding ----------
 @bot.on_message(filters.command("scrab") & filters.private)
