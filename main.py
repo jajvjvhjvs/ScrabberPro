@@ -99,6 +99,11 @@ bot = Client(
 )
 
 # --------------------------------------------------------------
+# CRITICAL: Initialize pyromod listen to enable client.ask()
+# --------------------------------------------------------------
+listen(bot)
+
+# --------------------------------------------------------------
 # HELPER FUNCTIONS (with exhaustive error handling & logging)
 # --------------------------------------------------------------
 
@@ -475,10 +480,11 @@ async def get_help_text(user_id: int) -> str:
     text += "• The owner is always an admin and can manage other admins.\n"
     return text
 
-@bot.on_message(filters.command("start") & filters.private)
+# ---------- COMMAND HANDLERS (now work in both private and group chats) ----------
+@bot.on_message(filters.command("start"))
 async def start_command(client: Client, message: Message):
     try:
-        logger.info(f"Command /start from {message.from_user.id}")
+        logger.info(f"Command /start from {message.from_user.id} in chat {message.chat.id}")
         keyboard = InlineKeyboardMarkup([
             [InlineKeyboardButton("📘 Help", callback_data="help")],
             [InlineKeyboardButton("👤 Owner", url=f"tg://user?id={OWNER_ID}")]
@@ -492,10 +498,10 @@ async def start_command(client: Client, message: Message):
     except Exception as e:
         logger.error(f"start_command: ❌ {e}\n{traceback.format_exc()}")
 
-@bot.on_message(filters.command("help") & filters.private)
+@bot.on_message(filters.command("help"))
 async def help_command(client: Client, message: Message):
     try:
-        logger.info(f"Command /help from {message.from_user.id}")
+        logger.info(f"Command /help from {message.from_user.id} in chat {message.chat.id}")
         text = await get_help_text(message.from_user.id)
         keyboard = InlineKeyboardMarkup([
             [InlineKeyboardButton("🏠 Start", callback_data="start")]
@@ -530,10 +536,10 @@ async def callback_query_handler(client: Client, query: CallbackQuery):
         logger.error(f"callback_query_handler: ❌ {e}\n{traceback.format_exc()}")
 
 # ---------- SESSION MANAGEMENT ----------
-@bot.on_message(filters.command("addstring") & filters.private)
+@bot.on_message(filters.command("addstring"))
 async def addstring_command(client: Client, message: Message):
     try:
-        logger.info(f"Command /addstring from {message.from_user.id}")
+        logger.info(f"Command /addstring from {message.from_user.id} in chat {message.chat.id}")
         if not await is_admin(message.from_user.id):
             await message.reply("⛔ Admin only.")
             return
@@ -549,10 +555,10 @@ async def addstring_command(client: Client, message: Message):
         logger.error(f"addstring_command: ❌ {e}\n{traceback.format_exc()}")
         await message.reply("❌ An error occurred while adding session.")
 
-@bot.on_message(filters.command("rmstring") & filters.private)
+@bot.on_message(filters.command("rmstring"))
 async def rmstring_command(client: Client, message: Message):
     try:
-        logger.info(f"Command /rmstring from {message.from_user.id}")
+        logger.info(f"Command /rmstring from {message.from_user.id} in chat {message.chat.id}")
         if not await is_admin(message.from_user.id):
             await message.reply("⛔ Admin only.")
             return
@@ -567,10 +573,10 @@ async def rmstring_command(client: Client, message: Message):
         logger.error(f"rmstring_command: ❌ {e}\n{traceback.format_exc()}")
         await message.reply("❌ An error occurred while removing session.")
 
-@bot.on_message(filters.command("liststring") & filters.private)
+@bot.on_message(filters.command("liststring"))
 async def liststring_command(client: Client, message: Message):
     try:
-        logger.info(f"Command /liststring from {message.from_user.id}")
+        logger.info(f"Command /liststring from {message.from_user.id} in chat {message.chat.id}")
         if not await is_admin(message.from_user.id):
             await message.reply("⛔ Admin only.")
             return
@@ -583,10 +589,10 @@ async def liststring_command(client: Client, message: Message):
         logger.error(f"liststring_command: ❌ {e}\n{traceback.format_exc()}")
         await message.reply("❌ An error occurred while listing sessions.")
 
-@bot.on_message(filters.command("getstring") & filters.private)
+@bot.on_message(filters.command("getstring"))
 async def getstring_command(client: Client, message: Message):
     try:
-        logger.info(f"Command /getstring from {message.from_user.id}")
+        logger.info(f"Command /getstring from {message.from_user.id} in chat {message.chat.id}")
         if not await is_admin(message.from_user.id):
             await message.reply("⛔ Admin only.")
             return
@@ -604,10 +610,10 @@ async def getstring_command(client: Client, message: Message):
         logger.error(f"getstring_command: ❌ {e}\n{traceback.format_exc()}")
         await message.reply("❌ An error occurred while retrieving sessions.")
 
-@bot.on_message(filters.command("rmallstrings") & filters.private)
+@bot.on_message(filters.command("rmallstrings"))
 async def rmallstrings_command(client: Client, message: Message):
     try:
-        logger.info(f"Command /rmallstrings from {message.from_user.id}")
+        logger.info(f"Command /rmallstrings from {message.from_user.id} in chat {message.chat.id}")
         if not await is_admin(message.from_user.id):
             await message.reply("⛔ Admin only.")
             return
@@ -618,10 +624,10 @@ async def rmallstrings_command(client: Client, message: Message):
         await message.reply("❌ An error occurred while removing all sessions.")
 
 # ---------- ADMIN MANAGEMENT (OWNER ONLY) ----------
-@bot.on_message(filters.command("addadmin") & filters.private)
+@bot.on_message(filters.command("addadmin"))
 async def addadmin_command(client: Client, message: Message):
     try:
-        logger.info(f"Command /addadmin from {message.from_user.id}")
+        logger.info(f"Command /addadmin from {message.from_user.id} in chat {message.chat.id}")
         if message.from_user.id != OWNER_ID:
             await message.reply("⛔ Owner only.")
             return
@@ -640,10 +646,10 @@ async def addadmin_command(client: Client, message: Message):
         logger.error(f"addadmin_command: ❌ {e}\n{traceback.format_exc()}")
         await message.reply("❌ An error occurred while adding admin.")
 
-@bot.on_message(filters.command("rmadmin") & filters.private)
+@bot.on_message(filters.command("rmadmin"))
 async def rmadmin_command(client: Client, message: Message):
     try:
-        logger.info(f"Command /rmadmin from {message.from_user.id}")
+        logger.info(f"Command /rmadmin from {message.from_user.id} in chat {message.chat.id}")
         if message.from_user.id != OWNER_ID:
             await message.reply("⛔ Owner only.")
             return
@@ -665,10 +671,10 @@ async def rmadmin_command(client: Client, message: Message):
         logger.error(f"rmadmin_command: ❌ {e}\n{traceback.format_exc()}")
         await message.reply("❌ An error occurred while removing admin.")
 
-@bot.on_message(filters.command("listadmins") & filters.private)
+@bot.on_message(filters.command("listadmins"))
 async def listadmins_command(client: Client, message: Message):
     try:
-        logger.info(f"Command /listadmins from {message.from_user.id}")
+        logger.info(f"Command /listadmins from {message.from_user.id} in chat {message.chat.id}")
         if not await is_admin(message.from_user.id):
             await message.reply("⛔ Admin only.")
             return
@@ -688,17 +694,16 @@ async def listadmins_command(client: Client, message: Message):
         await message.reply("❌ An error occurred while listing admins.")
 
 # ---------- SCRAPING & ADDING ----------
-@bot.on_message(filters.command("scrab") & filters.private)
+@bot.on_message(filters.command("scrab"))
 async def scrab_command(client: Client, message: Message):
     try:
-        logger.info(f"Command /scrab from {message.from_user.id}")
+        logger.info(f"Command /scrab from {message.from_user.id} in chat {message.chat.id}")
         if not await is_admin(message.from_user.id):
             await message.reply("⛔ Admin only.")
             return
 
         # Step 1: ask for groups to scrape
         q = await message.reply("📥 Send the group IDs / usernames / invite links to scrape members from.\nSeparate multiple by new line or comma.")
-        # FIX: Use filters=filters.text (keyword argument)
         response = await client.ask(message.chat.id, filters=filters.text, timeout=120)
         if not response or not response.text:
             await message.reply("❌ No input received.")
@@ -793,17 +798,16 @@ async def scrab_command(client: Client, message: Message):
         logger.error(f"scrab_command: ❌ Unhandled error - {e}\n{traceback.format_exc()}")
         await message.reply("❌ An unexpected error occurred. Check logs.")
 
-@bot.on_message(filters.command("import") & filters.private)
+@bot.on_message(filters.command("import"))
 async def import_command(client: Client, message: Message):
     try:
-        logger.info(f"Command /import from {message.from_user.id}")
+        logger.info(f"Command /import from {message.from_user.id} in chat {message.chat.id}")
         if not await is_admin(message.from_user.id):
             await message.reply("⛔ Admin only.")
             return
 
         # Step 1: ask for .txt file
         q = await message.reply("📁 Send the `.txt` file containing user IDs (one per line).")
-        # FIX: Use filters=filters.document (keyword argument)
         response = await client.ask(message.chat.id, filters=filters.document, timeout=120)
         if not response or not response.document:
             await message.reply("❌ No file received.")
