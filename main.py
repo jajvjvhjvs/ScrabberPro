@@ -22,17 +22,16 @@ logger = logging.getLogger("MemberAdderBot")
 # 2. IMPORTS & PYROMOD SETUP
 # --------------------------------------------------------------
 try:
-    # Pyromod is required for client.ask. We import it immediately.
-    import pyromod.listen
+    # Pyromod is required for client.ask – we also need to call listen()
+    from pyromod import listen
     from pyrogram import Client, filters, idle
     from pyrogram.types import Message, InlineKeyboardMarkup, InlineKeyboardButton, CallbackQuery
-    from pyrogram.enums import UserStatus, ChatMemberStatus, ParseMode
+    from pyrogram.enums import UserStatus, ParseMode
     from pyrogram.errors import (
         FloodWait, PeerFlood, UserPrivacyRestricted,
         UserChannelsTooMuch, ChatAdminRequired, UserNotParticipant,
         UsernameNotOccupied, ChatIdInvalid, PeerIdInvalid,
-        SessionPasswordNeeded, AuthKeyUnregistered, UserDeactivated,
-        RPCError
+        SessionPasswordNeeded, AuthKeyUnregistered, UserDeactivated
     )
     import motor.motor_asyncio
 except ImportError as e:
@@ -60,7 +59,6 @@ LIMIT_PER_ACCOUNT = int(get_env("LIMIT_PER_ACCOUNT", "45"))
 # 4. MONGODB SETUP (With Connection Check)
 # --------------------------------------------------------------
 try:
-    # Set a 5-second timeout for server selection to fail fast if DB is down
     mongo_client = motor.motor_asyncio.AsyncIOMotorClient(MONGODB_URI, serverSelectionTimeoutMS=5000)
     db = mongo_client["member_adder_bot"]
     sessions_col = db["sessions"]
@@ -78,11 +76,16 @@ bot = Client(
     api_id=API_ID,
     api_hash=API_HASH,
     bot_token=BOT_TOKEN,
-    plugins=dict(root="plugins") # Placeholder, we use inline handlers
+    plugins=None  # No external plugins – simplifies startup
 )
 
 # --------------------------------------------------------------
-# 6. HELPER FUNCTIONS (With Fallbacks & Logs)
+# 6. CRITICAL: ACTIVATE PYROMOD LISTEN
+# --------------------------------------------------------------
+listen(bot)
+
+# --------------------------------------------------------------
+# 7. HELPER FUNCTIONS (With Fallbacks & Logs)
 # --------------------------------------------------------------
 
 async def check_mongo_connection():
@@ -187,7 +190,7 @@ async def user_client(session_string: str, name: str):
         api_hash=API_HASH,
         session_string=session_string,
         in_memory=True,
-        no_updates=True # We don't need updates for adders/scrapers
+        no_updates=True  # We don't need updates for adders/scrapers
     )
     try:
         logger.info(f"Starting user client: {name}")
@@ -195,7 +198,6 @@ async def user_client(session_string: str, name: str):
         yield client
     except (AuthKeyUnregistered, UserDeactivated, SessionPasswordNeeded) as e:
         logger.error(f"Session '{name}' is INVALID or REVOKED: {e}")
-        # Optional: You could auto-delete bad sessions here
     except Exception as e:
         logger.error(f"Failed to start user client '{name}': {e}")
     finally:
@@ -241,7 +243,6 @@ async def scrape_members_from_group(client: Client, group: str) -> List[int]:
         logger.error(f"Cannot scrape {group}: Userbot is not a participant.")
     except Exception as e:
         logger.error(f"Scrape Error for {group}: {e}")
-        # Fallback: Just return what we have (empty list)
     return members
 
 async def add_members_to_group(
@@ -285,7 +286,6 @@ async def add_members_to_group(
                 await acc.join_chat(target_group)
             except Exception as e:
                 logger.warning(f"Account {name} could not join target group: {e}")
-                # Continue anyway, might already be in it or public
 
             while added_count < limit and member_index < total_members:
                 uid = user_ids[member_index]
@@ -355,7 +355,7 @@ async def send_log_file(client: Client, chat_id: int, user_ids: List[int], prefi
         logger.error(f"Failed to send log file: {e}")
 
 # --------------------------------------------------------------
-# 7. HELP TEXT
+# 8. HELP TEXT
 # --------------------------------------------------------------
 async def get_help_text(user_id: int) -> str:
     try:
@@ -393,7 +393,7 @@ async def get_help_text(user_id: int) -> str:
         return "Error generating help."
 
 # --------------------------------------------------------------
-# 8. MESSAGE HANDLERS (Wrapped in try/except)
+# 9. MESSAGE HANDLERS (Wrapped in try/except)
 # --------------------------------------------------------------
 
 @bot.on_message(filters.command("start") & filters.private)
@@ -612,7 +612,7 @@ async def scrab_command(client: Client, message: Message):
         # Step 1: Input Groups
         try:
             prompt = await message.reply("📥 Send the group IDs / usernames / invite links to scrape members from.\nSeparate multiple by new line or comma.")
-            response = await client.ask(message.chat.id, filters.text, timeout=120)
+            response = await client.ask(message.chat.id, filters=filters.text, timeout=120)
         except Exception as e:
             return await message.reply(f"❌ Input timed out or failed: {e}")
 
@@ -655,7 +655,7 @@ async def scrab_command(client: Client, message: Message):
         # Step 3: Target Group
         try:
             await status_msg.edit_text(f"✅ Total Scraped: {len(all_members)}\n📤 Now send the **target group ID/username**.")
-            target_resp = await client.ask(message.chat.id, filters.text, timeout=120)
+            target_resp = await client.ask(message.chat.id, filters=filters.text, timeout=120)
         except Exception as e:
             return await message.reply(f"❌ Input timed out: {e}")
 
@@ -704,7 +704,7 @@ async def import_command(client: Client, message: Message):
         # Step 1: File Input
         try:
             q = await message.reply("📁 Send the `.txt` file containing user IDs (one per line).")
-            response = await client.ask(message.chat.id, filters.document, timeout=120)
+            response = await client.ask(message.chat.id, filters=filters.document, timeout=120)
         except Exception as e:
             return await message.reply(f"❌ Input timed out: {e}")
 
@@ -731,7 +731,7 @@ async def import_command(client: Client, message: Message):
         # Step 2: Target Group
         try:
             await message.reply(f"✅ Loaded {len(user_ids)} IDs.\nNow send the **target group ID/username**.")
-            target_resp = await client.ask(message.chat.id, filters.text, timeout=120)
+            target_resp = await client.ask(message.chat.id, filters=filters.text, timeout=120)
         except Exception as e:
             return await message.reply(f"❌ Input timed out: {e}")
 
@@ -769,7 +769,7 @@ async def import_command(client: Client, message: Message):
         await message.reply(f"❌ An internal error occurred: {e}")
 
 # --------------------------------------------------------------
-# 9. MAIN EXECUTION
+# 10. MAIN EXECUTION
 # --------------------------------------------------------------
 async def main():
     try:
@@ -795,7 +795,6 @@ async def main():
         logger.critical(traceback.format_exc())
 
 if __name__ == "__main__":
-    # Ensure event loop logic is safe
     try:
         asyncio.run(main())
     except KeyboardInterrupt:
