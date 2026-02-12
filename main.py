@@ -6,7 +6,10 @@ from datetime import datetime
 from typing import List, Dict, Optional
 from contextlib import asynccontextmanager
 
-from pyrogram import Client, filters
+# Pyromod is required for client.ask
+from pyromod import listen
+
+from pyrogram import Client, filters, idle
 from pyrogram.types import Message, InlineKeyboardMarkup, InlineKeyboardButton, CallbackQuery
 from pyrogram.enums import UserStatus, ChatMemberStatus, ParseMode
 from pyrogram.errors import (
@@ -17,13 +20,13 @@ from pyrogram.errors import (
 import motor.motor_asyncio
 
 # --------------------------------------------------------------
-# ENVIRONMENT VARIABLES (all must be set)
+# ENVIRONMENT VARIABLES (Hardcoded defaults as requested)
 # --------------------------------------------------------------
 API_ID = int(os.getenv("API_ID", "29113757"))
 API_HASH = os.getenv("API_HASH", "4fb029c4a5d6beb7b6c8c0616c840939")
 BOT_TOKEN = os.getenv("BOT_TOKEN", "8244250546:AAGcgXiYkBOLdmuBhZoc1t9OU0bi-g0tk04")
 OWNER_ID = int(os.getenv("OWNER_ID", "6773435708"))
-LOG_GROUP = int(os.getenv("LOG_GROUP", "-1002275616383"))          # chat id (with -100)
+LOG_GROUP = int(os.getenv("LOG_GROUP", "-1002275616383"))
 MONGODB_URI = os.getenv("MONGODB_URI", "mongodb+srv://iamnobita1:nobitamusic1@cluster0.k08op.mongodb.net/?retryWrites=true&w=majority")
 LIMIT_PER_ACCOUNT = int(os.getenv("LIMIT_PER_ACCOUNT", "45"))
 
@@ -542,8 +545,10 @@ async def import_command(client: Client, message: Message):
 # Main entry
 # --------------------------------------------------------------
 async def main():
+    await bot.start()
     print("Bot started.")
-    await bot.run()
+    await idle()
+    await bot.stop()
 
 if __name__ == "__main__":
     asyncio.run(main())
