@@ -47,8 +47,8 @@ def get_env(name, default):
     logger.info(f"Loaded ENV {name}: {val if name != 'API_HASH' and name != 'BOT_TOKEN' else '********'}")
     return val
 
-API_ID = int(get_env("API_ID", "29113757"))
-API_HASH = get_env("API_HASH", "4fb029c4a5d6beb7b6c8c0616c840939")
+API_ID = int(get_env("API_ID", "27367791"))
+API_HASH = get_env("API_HASH", "e7847da62e1461e2c0e87301b0aad8c4")
 BOT_TOKEN = get_env("BOT_TOKEN", "8244250546:AAGcgXiYkBOLdmuBhZoc1t9OU0bi-g0tk04")
 OWNER_ID = int(get_env("OWNER_ID", "6773435708"))
 LOG_GROUP = int(get_env("LOG_GROUP", "-1002275616383"))
