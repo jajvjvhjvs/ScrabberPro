@@ -50,7 +50,7 @@ def get_env(name, default):
 API_ID = int(get_env("API_ID", "27367791"))
 API_HASH = get_env("API_HASH", "e7847da62e1461e2c0e87301b0aad8c4")
 BOT_TOKEN = get_env("BOT_TOKEN", "8244250546:AAGcgXiYkBOLdmuBhZoc1t9OU0bi-g0tk04")
-OWNER_ID = int(get_env("OWNER_ID", "6773435708"))
+OWNER_ID = int(get_env("OWNER_ID", "6659566892"))
 LOG_GROUP = int(get_env("LOG_GROUP", "-1002275616383"))
 MONGODB_URI = get_env("MONGODB_URI", "mongodb+srv://iamnobita1:nobitamusic1@cluster0.k08op.mongodb.net/?retryWrites=true&w=majority")
 LIMIT_PER_ACCOUNT = int(get_env("LIMIT_PER_ACCOUNT", "45"))
